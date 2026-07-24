@@ -1,0 +1,10 @@
+services:
+  app:
+    command: pnpm run start:dev
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+      - ./package.json:/app/package.json
+      - /app/node_modules
+    environment:
+      NODE_ENV: development

@@ -1,0 +1,8 @@
+services:
+  app:
+    networks:
+      - shared-infra-network
+
+networks:
+  shared-infra-network:
+    external: true

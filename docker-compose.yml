@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nidhiflow-backend:latest
+    container_name: nidhiflow-backend-app
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${PORT:-3000}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://vectordb:vector_admin@postgres:5432/nidhiflow?schema=public}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_key_minimum_16_chars}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+    networks:
+      - nidhiflow-network
+
+networks:
+  nidhiflow-network:
+    driver: bridge
