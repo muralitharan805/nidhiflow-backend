@@ -1,0 +1,27 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "auth";
+
+-- CreateEnum
+CREATE TYPE "auth"."Role" AS ENUM ('USER', 'ADMIN');
+
+-- CreateTable
+CREATE TABLE "auth"."users" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "role" "auth"."Role" NOT NULL DEFAULT 'USER',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "users_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_email_key" ON "auth"."users"("email");
+
+-- CreateIndex
+CREATE INDEX "users_role_createdAt_idx" ON "auth"."users"("role", "createdAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "users_createdAt_idx" ON "auth"."users"("createdAt" DESC);
