@@ -5,7 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["auth", "public"]
+  schemas  = ["auth", "finance", "public"]
 }
 
 enum Role {
@@ -28,4 +28,101 @@ model User {
   @@index([createdAt(sort: Desc)])
   @@map("users")
   @@schema("auth")
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+
+  @@schema("finance")
+}
+
+enum PostingType {
+  DEBIT
+  CREDIT
+
+  @@schema("finance")
+}
+
+model Account {
+  id          String             @id @default(uuid())
+  code        String             @unique
+  name        String
+  type        AccountType
+  description String?
+  parentId    String?
+  parent      Account?           @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children    Account[]          @relation("AccountHierarchy")
+  postings    JournalPosting[]
+  loans       LoanAmortization[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([type])
+  @@map("accounts")
+  @@schema("finance")
+}
+
+model JournalEntry {
+  id              String           @id @default(uuid())
+  entryNumber     String           @unique
+  transactionDate DateTime         @default(now())
+  description     String
+  status          String           @default("POSTED")
+  postings        JournalPosting[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([transactionDate(sort: Desc)])
+  @@map("journal_entries")
+  @@schema("finance")
+}
+
+model JournalPosting {
+  id             String       @id @default(uuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+  type           PostingType
+  amount         Float
+  createdAt      DateTime     @default(now())
+
+  @@index([accountId])
+  @@map("journal_postings")
+  @@schema("finance")
+}
+
+model LoanAmortization {
+  id                 String   @id @default(uuid())
+  accountId          String
+  account            Account  @relation(fields: [accountId], references: [id])
+  principalAmount    Float
+  annualInterestRate Float
+  tenureMonths       Int
+  monthlyEmi         Float
+  startDate          DateTime
+  payoffDate         DateTime
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("loan_amortizations")
+  @@schema("finance")
+}
+
+model ForecastingScenario {
+  id                  String   @id @default(uuid())
+  name                String
+  initialAnnualIncome Float
+  incomeGrowthRate    Float
+  projectionYears     Int      @default(5)
+  categoryInflations  Json
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("forecasting_scenarios")
+  @@schema("finance")
 }
