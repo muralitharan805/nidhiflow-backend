@@ -16,13 +16,15 @@ enum Role {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String         @id @default(uuid())
+  email          String         @unique
+  name           String
+  password       String
+  role           Role           @default(USER)
+  accounts       Account[]
+  journalEntries JournalEntry[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([role, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
@@ -49,6 +51,8 @@ enum PostingType {
 
 model Account {
   id          String             @id @default(uuid())
+  userId      String?
+  user        User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
   code        String             @unique
   name        String
   type        AccountType
@@ -61,6 +65,7 @@ model Account {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
+  @@index([userId, type])
   @@index([type])
   @@map("accounts")
   @@schema("finance")
@@ -68,6 +73,8 @@ model Account {
 
 model JournalEntry {
   id              String           @id @default(uuid())
+  userId          String?
+  user            User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   entryNumber     String           @unique
   transactionDate DateTime         @default(now())
   description     String
@@ -76,6 +83,7 @@ model JournalEntry {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
+  @@index([userId, transactionDate(sort: Desc)])
   @@index([transactionDate(sort: Desc)])
   @@map("journal_entries")
   @@schema("finance")

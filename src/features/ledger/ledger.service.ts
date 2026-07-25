@@ -13,22 +13,26 @@ export interface NetWorthSummary {
 }
 
 /**
- * Service managing Chart of Accounts, double-entry journal postings, and Net Worth generation.
+ * Service managing Chart of Accounts, double-entry journal postings, and Net Worth generation with user-level isolation.
  */
 @Injectable()
 export class LedgerService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Creates a new Account head in the Chart of Accounts.
+   * Creates a new Account head in the Chart of Accounts scoped to a specific user.
    *
    * @param dto - Account creation details
+   * @param userId - Optional authenticated user ID
    * @returns Newly created Account entity
    * @throws ConflictException if account code already exists
    */
-  async createAccount(dto: CreateAccountDto): Promise<Account> {
-    const existing = await this.prisma.account.findUnique({
-      where: { code: dto.code },
+  async createAccount(dto: CreateAccountDto, userId?: string): Promise<Account> {
+    const existing = await this.prisma.account.findFirst({
+      where: {
+        code: dto.code,
+        ...(userId ? { OR: [{ userId }, { userId: null }] } : {}),
+      },
     });
     if (existing) {
       throw new ConflictException(`Account with code '${dto.code}' already exists.`);
@@ -41,18 +45,23 @@ export class LedgerService {
         type: dto.type,
         description: dto.description,
         parentId: dto.parentId,
+        userId: userId || undefined,
       },
     });
   }
 
   /**
-   * Retrieves paginated accounts with optional type filter.
+   * Retrieves paginated accounts scoped to a specific user.
    *
    * @param query - Pagination and filtering parameters
+   * @param userId - Optional authenticated user ID
    * @returns Array of accounts and total count
    */
-  async findAllAccounts(query: AccountQueryDto): Promise<{ items: Account[]; total: number }> {
-    const where = query.type ? { type: query.type } : {};
+  async findAllAccounts(query: AccountQueryDto, userId?: string): Promise<{ items: Account[]; total: number }> {
+    const where = {
+      ...(query.type ? { type: query.type } : {}),
+      ...(userId ? { OR: [{ userId }, { userId: null }] } : {}),
+    };
 
     const [items, total] = await Promise.all([
       this.prisma.account.findMany({
@@ -68,18 +77,22 @@ export class LedgerService {
   }
 
   /**
-   * Posts a multi-line double-entry journal entry.
+   * Posts a multi-line double-entry journal entry scoped to a specific user.
    * Enforces strict balance rule: Sum of Debits must equal Sum of Credits.
    *
    * @param dto - Multi-line journal entry payload
+   * @param userId - Optional authenticated user ID
    * @returns Created JournalEntry entity with postings
    * @throws BadRequestException if unbalanced or missing accounts
    */
-  async postJournalEntry(dto: CreateJournalEntryDto): Promise<JournalEntry> {
+  async postJournalEntry(dto: CreateJournalEntryDto, userId?: string): Promise<JournalEntry> {
     this.validatePostingBalance(dto.postings);
 
-    const existingTxn = await this.prisma.journalEntry.findUnique({
-      where: { entryNumber: dto.entryNumber },
+    const existingTxn = await this.prisma.journalEntry.findFirst({
+      where: {
+        entryNumber: dto.entryNumber,
+        ...(userId ? { userId } : {}),
+      },
     });
     if (existingTxn) {
       throw new ConflictException(`Journal entry with number '${dto.entryNumber}' already exists.`);
@@ -90,6 +103,7 @@ export class LedgerService {
         entryNumber: dto.entryNumber,
         description: dto.description,
         transactionDate: dto.transactionDate ? new Date(dto.transactionDate) : new Date(),
+        userId: userId || undefined,
         postings: {
           create: dto.postings.map((p) => ({
             accountId: p.accountId,
@@ -107,13 +121,17 @@ export class LedgerService {
   }
 
   /**
-   * Calculates overall Net Worth based on Assets minus Liabilities.
+   * Calculates overall Net Worth based on Assets minus Liabilities scoped to the authenticated user.
    *
+   * @param userId - Optional authenticated user ID
    * @returns Net Worth breakdown summary
    */
-  async getNetWorth(): Promise<NetWorthSummary> {
+  async getNetWorth(userId?: string): Promise<NetWorthSummary> {
     const accounts = await this.prisma.account.findMany({
-      include: { postings: true },
+      where: userId ? { OR: [{ userId }, { userId: null }] } : {},
+      include: {
+        postings: userId ? { where: { journalEntry: { userId } } } : true,
+      },
     });
 
     let totalAssets = 0;
