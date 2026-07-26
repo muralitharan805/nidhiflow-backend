@@ -42,24 +42,29 @@ export class CacheInvalidationInterceptor implements NestInterceptor {
     }
 
     return next.handle().pipe(
-      tap(async () => {
+      tap(() => {
         const domain = this.extractDomainFromPath(path);
-        const pattern = `nidhiflow:cache:${domain}:*`;
+        const pattern = `nidhiflow:cache:*${domain}*`;
 
-        this.logger.log(`🧹 [CACHE INVALIDATION] ${method} ${path} -> Purging pattern '${pattern}'`);
-        await this.redisCacheService.delByPattern(pattern);
+        this.logger.log(
+          `🧹 [CACHE INVALIDATION] ${method} ${path} -> Purging pattern '${pattern}'`,
+        );
+        void this.redisCacheService.delByPattern(pattern);
       }),
     );
   }
 
   /**
-   * Extracts domain resource name from request URL path.
+   * Extracts domain resource name from request URL path filtering out API prefixes.
    *
-   * @param path - URL path string (e.g. /api/v1/users/123)
-   * @returns Domain identifier (e.g. 'users')
+   * @param path - URL path string (e.g. /api/v1/ledger/entries)
+   * @returns Domain identifier (e.g. 'ledger')
    */
   private extractDomainFromPath(path: string): string {
     const pathSegments = path.split('/').filter(Boolean);
-    return pathSegments.length >= 2 ? pathSegments[1] : pathSegments[0] || 'default';
+    const domainSegments = pathSegments.filter(
+      (s) => s !== 'api' && !/^v\d+$/i.test(s),
+    );
+    return domainSegments[0] || 'default';
   }
 }

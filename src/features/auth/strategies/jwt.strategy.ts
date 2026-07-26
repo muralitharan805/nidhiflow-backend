@@ -17,7 +17,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    const jwtSecret = configService.get<string>('JWT_SECRET') || 'super_secret_jwt_key_minimum_16_chars';
+    const jwtSecret =
+      configService.get<string>('JWT_SECRET') ||
+      'super_secret_jwt_key_minimum_16_chars';
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -31,10 +33,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid or expired authentication token.');
+      throw new UnauthorizedException(
+        'Invalid or expired authentication token.',
+      );
     }
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
+    void password;
     return new UserEntity(userWithoutPassword);
   }
 }

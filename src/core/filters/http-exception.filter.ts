@@ -29,7 +29,8 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
 
     const errorMessage =
       typeof exceptionResponse === 'object' && exceptionResponse !== null
-        ? (exceptionResponse as Record<string, unknown>)['message'] || exceptionResponse
+        ? (exceptionResponse as Record<string, unknown>)['message'] ||
+          exceptionResponse
         : exceptionResponse;
 
     this.logger.error(
@@ -42,7 +43,10 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
       statusCode: status,
       path: request.url,
       timestamp: new Date().toISOString(),
-      error: typeof exceptionResponse === 'object' ? exceptionResponse : { message: exceptionResponse },
+      error:
+        typeof exceptionResponse === 'object'
+          ? exceptionResponse
+          : { message: exceptionResponse },
     });
   }
 }

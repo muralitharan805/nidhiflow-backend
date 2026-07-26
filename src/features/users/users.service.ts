@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -26,7 +30,9 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new ConflictException(`User with email '${createUserDto.email}' already exists.`);
+      throw new ConflictException(
+        `User with email '${createUserDto.email}' already exists.`,
+      );
     }
 
     const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
@@ -38,7 +44,8 @@ export class UsersService {
       },
     });
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
+    void password;
     return new UserEntity(userWithoutPassword);
   }
 
@@ -52,7 +59,10 @@ export class UsersService {
       this.prisma.user.count(),
     ]);
 
-    const formattedUsers = users.map(({ password: _, ...user }) => new UserEntity(user));
+    const formattedUsers = users.map(({ password, ...user }) => {
+      void password;
+      return new UserEntity(user);
+    });
 
     return {
       data: formattedUsers,
@@ -74,7 +84,8 @@ export class UsersService {
       throw new NotFoundException(`User with ID '${id}' not found.`);
     }
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
+    void password;
     return new UserEntity(userWithoutPassword);
   }
 
@@ -94,7 +105,8 @@ export class UsersService {
       },
     });
 
-    const { password: _, ...userWithoutPassword } = updatedUser;
+    const { password, ...userWithoutPassword } = updatedUser;
+    void password;
     return new UserEntity(userWithoutPassword);
   }
 

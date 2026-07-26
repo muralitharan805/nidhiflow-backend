@@ -19,9 +19,10 @@ export interface ApiResponseEnvelope<T> {
 }
 
 @Injectable()
-export class TransformResponseInterceptor<T>
-  implements NestInterceptor<T, ApiResponseEnvelope<T>>
-{
+export class TransformResponseInterceptor<T> implements NestInterceptor<
+  T,
+  ApiResponseEnvelope<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,
@@ -31,16 +32,21 @@ export class TransformResponseInterceptor<T>
     const request = ctx.getRequest<Request>();
 
     return next.handle().pipe(
-      map((resData) => {
+      map((resData: unknown) => {
         // Handle paginated responses where resData contains { data, meta }
         const isPaginated =
-          resData &&
+          resData !== null &&
           typeof resData === 'object' &&
           'data' in resData &&
           'meta' in resData;
 
-        const data = isPaginated ? resData.data : resData;
-        const meta = isPaginated ? resData.meta : undefined;
+        const paginatedObj = isPaginated
+          ? (resData as Record<string, unknown>)
+          : null;
+        const data = (paginatedObj ? paginatedObj.data : resData) as T;
+        const meta = paginatedObj
+          ? (paginatedObj.meta as Record<string, unknown>)
+          : undefined;
 
         return {
           success: true,

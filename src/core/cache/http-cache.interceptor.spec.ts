@@ -15,7 +15,11 @@ describe('HttpCacheInterceptor', () => {
     setHeader: jest.fn(),
   };
 
-  const createMockContext = (method: string, url: string, path: string): ExecutionContext =>
+  const createMockContext = (
+    method: string,
+    url: string,
+    path: string,
+  ): ExecutionContext =>
     ({
       switchToHttp: () => ({
         getRequest: () => ({ method, url, originalUrl: url, path }),
@@ -47,7 +51,11 @@ describe('HttpCacheInterceptor', () => {
       getAllAndOverride: jest.fn().mockReturnValue(false),
     } as unknown as jest.Mocked<Reflector>;
 
-    interceptor = new HttpCacheInterceptor(redisCacheService, configService, reflector);
+    interceptor = new HttpCacheInterceptor(
+      redisCacheService,
+      configService,
+      reflector,
+    );
     jest.clearAllMocks();
   });
 
@@ -57,6 +65,7 @@ describe('HttpCacheInterceptor', () => {
 
     result$.subscribe((val) => {
       expect(val).toEqual({ success: true, data: 'test' });
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(redisCacheService.get).not.toHaveBeenCalled();
     });
   });
@@ -66,6 +75,7 @@ describe('HttpCacheInterceptor', () => {
     const result$ = await interceptor.intercept(context, mockCallHandler);
 
     result$.subscribe(() => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(redisCacheService.get).not.toHaveBeenCalled();
     });
   });
@@ -79,6 +89,7 @@ describe('HttpCacheInterceptor', () => {
     result$.subscribe((val) => {
       expect(val).toEqual({ success: true, data: 'test' });
       expect(mockResponse.setHeader).toHaveBeenCalledWith('X-Cache', 'MISS');
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(redisCacheService.set).toHaveBeenCalled();
     });
   });

@@ -38,21 +38,34 @@ export class AmortizationService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Creates a loan amortization schedule and persists to database.
+   * Creates a loan amortization schedule and persists to database scoped to user/seed account.
    *
    * @param dto - Loan parameters
+   * @param userId - Optional authenticated user ID
    * @returns Detailed loan calculations and full amortization schedule
    */
-  async createLoan(dto: CreateLoanDto): Promise<LoanAmortizationDetails> {
-    const account = await this.prisma.account.findUnique({
-      where: { id: dto.accountId },
+  async createLoan(
+    dto: CreateLoanDto,
+    userId?: string,
+  ): Promise<LoanAmortizationDetails> {
+    const account = await this.prisma.account.findFirst({
+      where: {
+        id: dto.accountId,
+        ...(userId ? { OR: [{ userId }, { userId: null }] } : {}),
+      },
     });
     if (!account) {
-      throw new NotFoundException(`Liability account with ID '${dto.accountId}' not found.`);
+      throw new NotFoundException(
+        `Liability account with ID '${dto.accountId}' not found or inaccessible.`,
+      );
     }
 
     const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
-    const monthlyEmi = this.calculateEmi(dto.principalAmount, dto.annualInterestRate, dto.tenureMonths);
+    const monthlyEmi = this.calculateEmi(
+      dto.principalAmount,
+      dto.annualInterestRate,
+      dto.tenureMonths,
+    );
     const payoffDate = new Date(startDate);
     payoffDate.setMonth(payoffDate.getMonth() + dto.tenureMonths);
 
@@ -68,32 +81,54 @@ export class AmortizationService {
       },
     });
 
-    const schedule = this.generateSchedule(dto.principalAmount, dto.annualInterestRate, dto.tenureMonths, startDate, monthlyEmi);
-    const totalInterest = schedule.reduce((sum, item) => sum + item.interestComponent, 0);
+    const schedule = this.generateSchedule(
+      dto.principalAmount,
+      dto.annualInterestRate,
+      dto.tenureMonths,
+      startDate,
+      monthlyEmi,
+    );
+    const totalInterest = schedule.reduce(
+      (sum, item) => sum + item.interestComponent,
+      0,
+    );
 
     return {
       loan,
       monthlyEmi,
       totalInterestPayable: Math.round(totalInterest * 100) / 100,
-      totalAmountPayable: Math.round((dto.principalAmount + totalInterest) * 100) / 100,
+      totalAmountPayable:
+        Math.round((dto.principalAmount + totalInterest) * 100) / 100,
       payoffDate: payoffDate.toISOString(),
       schedule,
     };
   }
 
   /**
-   * Simulates early principal prepayment and computes interest & timeline savings.
+   * Simulates early principal prepayment and computes interest & timeline savings scoped to user.
    *
    * @param loanId - Database ID of existing loan
    * @param dto - Prepayment details
+   * @param userId - Optional authenticated user ID
    * @returns Simulation result with revised payoff date and savings
    */
-  async simulatePrepayment(loanId: string, dto: PrepaymentDto): Promise<PrepaymentSimulationResult> {
-    const loan = await this.prisma.loanAmortization.findUnique({
-      where: { id: loanId },
+  async simulatePrepayment(
+    loanId: string,
+    dto: PrepaymentDto,
+    userId?: string,
+  ): Promise<PrepaymentSimulationResult> {
+    const loan = await this.prisma.loanAmortization.findFirst({
+      where: {
+        id: loanId,
+        ...(userId
+          ? { account: { OR: [{ userId }, { userId: null }] } }
+          : {}),
+      },
     });
     if (!loan) {
-      throw new NotFoundException(`Loan amortization record '${loanId}' not found.`);
+      throw new NotFoundException(
+        `Loan amortization record '${loanId}' not found or inaccessible.`,
+      );
     }
 
     const originalDetails = this.generateSchedule(
@@ -103,13 +138,16 @@ export class AmortizationService {
       loan.startDate,
       loan.monthlyEmi,
     );
-    const originalTotalInterest = originalDetails.reduce((sum, i) => sum + i.interestComponent, 0);
+    const originalTotalInterest = originalDetails.reduce(
+      (sum, i) => sum + i.interestComponent,
+      0,
+    );
 
     const monthlyRate = loan.annualInterestRate / (12 * 100);
     const updatedSchedule: AmortizationScheduleItem[] = [];
 
     let currentBalance = loan.principalAmount;
-    let currentDate = new Date(loan.startDate);
+    const currentDate = new Date(loan.startDate);
 
     for (let month = 1; month <= loan.tenureMonths; month++) {
       if (currentBalance <= 0) break;
@@ -138,15 +176,21 @@ export class AmortizationService {
       });
     }
 
-    const newTotalInterest = updatedSchedule.reduce((sum, i) => sum + i.interestComponent, 0);
+    const newTotalInterest = updatedSchedule.reduce(
+      (sum, i) => sum + i.interestComponent,
+      0,
+    );
     const originalPayoff = loan.payoffDate.toISOString().split('T')[0] || '';
-    const newPayoff = updatedSchedule[updatedSchedule.length - 1]?.paymentDate || originalPayoff;
+    const newPayoff =
+      updatedSchedule[updatedSchedule.length - 1]?.paymentDate ||
+      originalPayoff;
 
     return {
       originalPayoffDate: originalPayoff,
       newPayoffDate: newPayoff,
       monthsSaved: loan.tenureMonths - updatedSchedule.length,
-      interestSaved: Math.round((originalTotalInterest - newTotalInterest) * 100) / 100,
+      interestSaved:
+        Math.round((originalTotalInterest - newTotalInterest) * 100) / 100,
       updatedSchedule,
     };
   }
@@ -154,10 +198,15 @@ export class AmortizationService {
   /**
    * Standard EMI mathematical formula: M = P * r * (1 + r)^n / ((1 + r)^n - 1)
    */
-  calculateEmi(principal: number, annualRate: number, tenureMonths: number): number {
+  calculateEmi(
+    principal: number,
+    annualRate: number,
+    tenureMonths: number,
+  ): number {
     const monthlyRate = annualRate / (12 * 100);
     const compoundFactor = Math.pow(1 + monthlyRate, tenureMonths);
-    const emi = (principal * monthlyRate * compoundFactor) / (compoundFactor - 1);
+    const emi =
+      (principal * monthlyRate * compoundFactor) / (compoundFactor - 1);
     return Math.round(emi * 100) / 100;
   }
 
@@ -175,7 +224,7 @@ export class AmortizationService {
     const monthlyRate = annualRate / (12 * 100);
 
     let remainingPrincipal = principal;
-    let currentDate = new Date(startDate);
+    const currentDate = new Date(startDate);
 
     for (let month = 1; month <= tenureMonths; month++) {
       currentDate.setMonth(currentDate.getMonth() + 1);

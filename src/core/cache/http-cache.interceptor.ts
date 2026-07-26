@@ -43,17 +43,28 @@ export class HttpCacheInterceptor implements NestInterceptor {
    * @param next - CallHandler to invoke the next handler in pipeline
    * @returns Observable emitting response payload
    */
-  async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<unknown>> {
     const ctx = context.switchToHttp();
     const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
 
-    if (request.method !== 'GET' || this.shouldBypassCache(context, request.path || request.url)) {
+    if (
+      request.method !== 'GET' ||
+      this.shouldBypassCache(context, request.path || request.url)
+    ) {
       return next.handle();
     }
 
     const startTime = Date.now();
-    const cacheKey = this.generateCacheKey(request.path || '', request.originalUrl || request.url);
+    const reqWithUser = request as Request & { user?: { id?: string } };
+    const cacheKey = this.generateCacheKey(
+      request.path || '',
+      request.originalUrl || request.url,
+      reqWithUser.user?.id,
+    );
     const cachedData = await this.redisCacheService.get<unknown>(cacheKey);
 
     if (cachedData) {
@@ -76,7 +87,7 @@ export class HttpCacheInterceptor implements NestInterceptor {
           `🔍 [CACHE MISS] ${request.method} ${request.originalUrl || request.url} (database query - ${duration}ms)`,
         );
         response.setHeader('X-Response-Time', `${duration}ms`);
-        this.redisCacheService.set(cacheKey, data, ttl);
+        void this.redisCacheService.set(cacheKey, data, ttl);
       }),
     );
   }
@@ -89,7 +100,10 @@ export class HttpCacheInterceptor implements NestInterceptor {
    * @returns True if cache should be bypassed, false otherwise
    */
   private shouldBypassCache(context: ExecutionContext, path: string): boolean {
-    const isGlobalEnabled = this.configService.get<boolean>('REDIS_CACHE_GLOBAL_ENABLED', true);
+    const isGlobalEnabled = this.configService.get<boolean>(
+      'REDIS_CACHE_GLOBAL_ENABLED',
+      true,
+    );
     if (!isGlobalEnabled) {
       return true;
     }
@@ -119,24 +133,34 @@ export class HttpCacheInterceptor implements NestInterceptor {
    * @returns TTL duration in seconds
    */
   private getCacheTtl(context: ExecutionContext): number {
-    const customTtl = this.reflector.getAllAndOverride<number>(USE_CACHE_TTL_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const customTtl = this.reflector.getAllAndOverride<number>(
+      USE_CACHE_TTL_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     return customTtl || 300;
   }
 
   /**
-   * Generates a deterministic cache key prefix and URL hash.
+   * Generates a deterministic cache key prefix, user scope, and URL hash.
    *
    * @param path - Request path string
    * @param url - Request full URL string
+   * @param userId - Optional authenticated user ID for multi-tenant cache isolation
    * @returns Formatted cache key string
    */
-  private generateCacheKey(path: string, url: string): string {
-    const urlHash = crypto.createHash('md5').update(url).digest('hex').substring(0, 8);
+  private generateCacheKey(
+    path: string,
+    url: string,
+    userId?: string,
+  ): string {
+    const userScope = userId ? `user:${userId}` : 'anon';
+    const urlHash = crypto
+      .createHash('md5')
+      .update(url)
+      .digest('hex')
+      .substring(0, 8);
     const pathKey = path ? path.replace(/\//g, ':') : 'root';
-    return `nidhiflow:cache${pathKey}:${urlHash}`;
+    return `nidhiflow:cache:${userScope}:${pathKey}:${urlHash}`;
   }
 }

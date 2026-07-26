@@ -39,15 +39,21 @@ export class ForecastingService {
    * Does NOT mutate actual ledger postings.
    *
    * @param dto - Simulation parameters
+   * @param userId - Optional authenticated user ID
    * @returns Detailed multi-year projections and Deficit Crossover Year detection
    */
-  async simulateScenario(dto: SimulateScenarioDto): Promise<SimulationResult> {
-    const netWorthSummary = await this.ledgerService.getNetWorth();
+  async simulateScenario(
+    dto: SimulateScenarioDto,
+    userId?: string,
+  ): Promise<SimulationResult> {
+    const netWorthSummary = await this.ledgerService.getNetWorth(userId);
     const initialNetWorth = netWorthSummary.netWorth;
 
     let annualEmi = dto.annualEmiObligation ?? 0;
     if (dto.annualEmiObligation === undefined) {
-      const loans = await this.prisma.loanAmortization.findMany();
+      const loans = await this.prisma.loanAmortization.findMany({
+        where: userId ? { account: { OR: [{ userId }, { userId: null }] } } : {},
+      });
       annualEmi = loans.reduce((sum, loan) => sum + loan.monthlyEmi * 12, 0);
     }
 
@@ -58,11 +64,13 @@ export class ForecastingService {
     let runningNetWorth = initialNetWorth;
 
     for (let t = 1; t <= projectionYears; t++) {
-      const projectedIncome = dto.initialAnnualIncome * Math.pow(1 + dto.incomeGrowthRate, t);
+      const projectedIncome =
+        dto.initialAnnualIncome * Math.pow(1 + dto.incomeGrowthRate, t);
 
       let projectedExpenses = 0;
       for (const item of dto.categoryInflations) {
-        projectedExpenses += item.baseAnnualExpense * Math.pow(1 + item.inflationRate, t);
+        projectedExpenses +=
+          item.baseAnnualExpense * Math.pow(1 + item.inflationRate, t);
       }
 
       const totalOutflow = projectedExpenses + annualEmi;

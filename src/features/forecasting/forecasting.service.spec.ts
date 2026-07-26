@@ -37,6 +37,7 @@ describe('ForecastingService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
+    expect(ledgerService).toBeDefined();
   });
 
   describe('simulateScenario', () => {
@@ -66,13 +67,19 @@ describe('ForecastingService', () => {
         annualEmiObligation: 100000,
         projectionYears: 5,
         categoryInflations: [
-          { category: 'Groceries', baseAnnualExpense: 300000, inflationRate: 0.05 }, // 5% inflation
+          {
+            category: 'Groceries',
+            baseAnnualExpense: 300000,
+            inflationRate: 0.05,
+          }, // 5% inflation
         ],
       };
 
       const result = await service.simulateScenario(dto);
       expect(result.hasDeficitCrossover).toBe(false);
-      expect(result.projectedFinalNetWorth).toBeGreaterThan(result.initialNetWorth);
+      expect(result.projectedFinalNetWorth).toBeGreaterThan(
+        result.initialNetWorth,
+      );
     });
   });
 });

@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
@@ -27,7 +31,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password.');
     }
 
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      user.password,
+    );
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid email or password.');
     }
@@ -35,7 +42,8 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
+    void password;
     return {
       accessToken,
       user: new UserEntity(userWithoutPassword),
@@ -48,7 +56,9 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException(`User with email '${registerDto.email}' already exists.`);
+      throw new ConflictException(
+        `User with email '${registerDto.email}' already exists.`,
+      );
     }
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
@@ -63,7 +73,8 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
 
-    const { password: _, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
+    void password;
     return {
       accessToken,
       user: new UserEntity(userWithoutPassword),

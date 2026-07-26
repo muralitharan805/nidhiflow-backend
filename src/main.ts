@@ -30,7 +30,9 @@ async function bootstrap(): Promise<void> {
   // OpenAPI / Swagger Interactive Documentation
   const swaggerConfig = new DocumentBuilder()
     .setTitle('NidhiFlow Enterprise Backend API')
-    .setDescription('Production-grade NestJS REST API with Double-Entry Accounting & Financial Scaffolding')
+    .setDescription(
+      'Production-grade NestJS REST API with Double-Entry Accounting & Financial Scaffolding',
+    )
     .setVersion('1.0.0')
     .addBearerAuth()
     .build();
@@ -42,7 +44,9 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
 
   logger.log(`🚀 Application running on http://localhost:${port}/api/v1`);
-  logger.log(`📚 Swagger Documentation active at http://localhost:${port}/api/docs`);
+  logger.log(
+    `📚 Swagger Documentation active at http://localhost:${port}/api/docs`,
+  );
 }
 
-bootstrap();
+void bootstrap();

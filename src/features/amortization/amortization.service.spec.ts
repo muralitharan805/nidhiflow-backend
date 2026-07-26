@@ -11,10 +11,12 @@ describe('AmortizationService', () => {
     const mockPrisma = {
       account: {
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
       },
       loanAmortization: {
         create: jest.fn(),
         findUnique: jest.fn(),
+        findFirst: jest.fn(),
       },
     };
 
@@ -42,21 +44,26 @@ describe('AmortizationService', () => {
   });
 
   describe('createLoan', () => {
-    it('should throw NotFoundException if account does not exist', async () => {
-      (prisma.account.findUnique as jest.Mock).mockResolvedValue(null);
+    it('should throw NotFoundException if account does not exist or is inaccessible', async () => {
+      (prisma.account.findFirst as jest.Mock).mockResolvedValue(null);
 
       await expect(
-        service.createLoan({
-          accountId: 'non-existent-id',
-          principalAmount: 2500000,
-          annualInterestRate: 8.5,
-          tenureMonths: 240,
-        }),
+        service.createLoan(
+          {
+            accountId: 'non-existent-id',
+            principalAmount: 2500000,
+            annualInterestRate: 8.5,
+            tenureMonths: 240,
+          },
+          'user-123',
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('should calculate loan details and schedule correctly when account exists', async () => {
-      (prisma.account.findUnique as jest.Mock).mockResolvedValue({ id: 'acc-1' });
+      (prisma.account.findFirst as jest.Mock).mockResolvedValue({
+        id: 'acc-1',
+      });
       (prisma.loanAmortization.create as jest.Mock).mockResolvedValue({
         id: 'loan-1',
         accountId: 'acc-1',
@@ -68,13 +75,16 @@ describe('AmortizationService', () => {
         payoffDate: new Date('2046-08-01'),
       });
 
-      const result = await service.createLoan({
-        accountId: 'acc-1',
-        principalAmount: 2500000,
-        annualInterestRate: 8.5,
-        tenureMonths: 240,
-        startDate: '2026-08-01',
-      });
+      const result = await service.createLoan(
+        {
+          accountId: 'acc-1',
+          principalAmount: 2500000,
+          annualInterestRate: 8.5,
+          tenureMonths: 240,
+          startDate: '2026-08-01',
+        },
+        'user-123',
+      );
 
       expect(result.monthlyEmi).toBeGreaterThan(21690);
       expect(result.schedule.length).toBe(240);
@@ -87,7 +97,7 @@ describe('AmortizationService', () => {
       const startDate = new Date('2026-08-01');
       const payoffDate = new Date('2046-08-01');
 
-      (prisma.loanAmortization.findUnique as jest.Mock).mockResolvedValue({
+      (prisma.loanAmortization.findFirst as jest.Mock).mockResolvedValue({
         id: 'loan-1',
         accountId: 'acc-1',
         principalAmount: 2500000,
@@ -98,10 +108,14 @@ describe('AmortizationService', () => {
         payoffDate,
       });
 
-      const simulation = await service.simulatePrepayment('loan-1', {
-        prepaymentAmount: 500000,
-        prepaymentMonth: 12,
-      });
+      const simulation = await service.simulatePrepayment(
+        'loan-1',
+        {
+          prepaymentAmount: 500000,
+          prepaymentMonth: 12,
+        },
+        'user-123',
+      );
 
       expect(simulation.monthsSaved).toBeGreaterThan(0);
       expect(simulation.interestSaved).toBeGreaterThan(0);

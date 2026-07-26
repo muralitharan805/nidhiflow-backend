@@ -9,7 +9,15 @@ import { CacheInvalidationInterceptor } from './cache-invalidation.interceptor';
  */
 @Global()
 @Module({
-  providers: [RedisCacheService, HttpCacheInterceptor, CacheInvalidationInterceptor],
-  exports: [RedisCacheService, HttpCacheInterceptor, CacheInvalidationInterceptor],
+  providers: [
+    RedisCacheService,
+    HttpCacheInterceptor,
+    CacheInvalidationInterceptor,
+  ],
+  exports: [
+    RedisCacheService,
+    HttpCacheInterceptor,
+    CacheInvalidationInterceptor,
+  ],
 })
 export class CacheModule {}

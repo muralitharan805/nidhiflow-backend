@@ -14,7 +14,10 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'User Login & JWT Token Exchange' })
-  @ApiResponse({ status: 200, description: 'Login successful, JWT token issued' })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful, JWT token issued',
+  })
   login(@Body() loginDto: LoginDto): Promise<AuthTokenResult> {
     return this.authService.login(loginDto);
   }
@@ -23,7 +26,10 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Self-service User Registration' })
-  @ApiResponse({ status: 201, description: 'User account registered successfully' })
+  @ApiResponse({
+    status: 201,
+    description: 'User account registered successfully',
+  })
   register(@Body() registerDto: RegisterDto): Promise<AuthTokenResult> {
     return this.authService.register(registerDto);
   }

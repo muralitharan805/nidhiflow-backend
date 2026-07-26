@@ -71,6 +71,19 @@ model Account {
   @@schema("finance")
 }
 
+model AccountCategoryMeta {
+  type        AccountType @id
+  label       String
+  icon        String
+  description String
+  colorClass  String?     @default("")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("account_category_meta")
+  @@schema("finance")
+}
+
 model JournalEntry {
   id              String           @id @default(uuid())
   userId          String?

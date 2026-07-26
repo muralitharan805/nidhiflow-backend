@@ -1,9 +1,21 @@
-import { Injectable, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
-import { Account, AccountType, JournalEntry, PostingType } from '@prisma/client';
+import {
+  Injectable,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
+import {
+  Account,
+  AccountCategoryMeta,
+  AccountType,
+  JournalEntry,
+  PostingType,
+} from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { CreateJournalEntryDto } from './dto/create-journal-entry.dto';
 import { AccountQueryDto } from './dto/account-query.dto';
+import { JournalEntryResponseDto } from './dto/journal-entry-response.dto';
 
 export interface NetWorthSummary {
   totalAssets: number;
@@ -20,6 +32,15 @@ export class LedgerService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
+   * Fetches all account category metadata stored in DB.
+   */
+  async getCategoryMetadata(): Promise<AccountCategoryMeta[]> {
+    return this.prisma.accountCategoryMeta.findMany({
+      orderBy: { type: 'asc' },
+    });
+  }
+
+  /**
    * Creates a new Account head in the Chart of Accounts scoped to a specific user.
    *
    * @param dto - Account creation details
@@ -27,7 +48,10 @@ export class LedgerService {
    * @returns Newly created Account entity
    * @throws ConflictException if account code already exists
    */
-  async createAccount(dto: CreateAccountDto, userId?: string): Promise<Account> {
+  async createAccount(
+    dto: CreateAccountDto,
+    userId?: string,
+  ): Promise<Account> {
     const existing = await this.prisma.account.findFirst({
       where: {
         code: dto.code,
@@ -35,7 +59,9 @@ export class LedgerService {
       },
     });
     if (existing) {
-      throw new ConflictException(`Account with code '${dto.code}' already exists.`);
+      throw new ConflictException(
+        `Account with code '${dto.code}' already exists.`,
+      );
     }
 
     return this.prisma.account.create({
@@ -57,7 +83,10 @@ export class LedgerService {
    * @param userId - Optional authenticated user ID
    * @returns Array of accounts and total count
    */
-  async findAllAccounts(query: AccountQueryDto, userId?: string): Promise<{ items: Account[]; total: number }> {
+  async findAllAccounts(
+    query: AccountQueryDto,
+    userId?: string,
+  ): Promise<{ items: Account[]; total: number }> {
     const where = {
       ...(query.type ? { type: query.type } : {}),
       ...(userId ? { OR: [{ userId }, { userId: null }] } : {}),
@@ -77,6 +106,54 @@ export class LedgerService {
   }
 
   /**
+   * Retrieves recent journal entries with populated posting account details scoped to a specific user.
+   *
+   * @param limit - Max number of entries to retrieve (default: 50)
+   * @param userId - Optional authenticated user ID
+   * @returns Array of recent JournalEntryResponseDto items with postings and account metadata
+   */
+  async findAllJournalEntries(
+    limit = 50,
+    userId?: string,
+  ): Promise<JournalEntryResponseDto[]> {
+    const entries = await this.prisma.journalEntry.findMany({
+      where: userId ? { userId } : {},
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        postings: {
+          include: {
+            account: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+                type: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return entries.map((entry) => ({
+      id: entry.id,
+      entryNumber: entry.entryNumber,
+      description: entry.description,
+      transactionDate: entry.transactionDate.toISOString(),
+      createdAt: entry.createdAt.toISOString(),
+      postings: entry.postings.map((p) => ({
+        accountId: p.accountId,
+        accountName: p.account?.name ?? '',
+        accountCode: p.account?.code ?? '',
+        accountType: p.account?.type,
+        type: p.type,
+        amount: p.amount,
+      })),
+    }));
+  }
+
+  /**
    * Posts a multi-line double-entry journal entry scoped to a specific user.
    * Enforces strict balance rule: Sum of Debits must equal Sum of Credits.
    *
@@ -85,8 +162,29 @@ export class LedgerService {
    * @returns Created JournalEntry entity with postings
    * @throws BadRequestException if unbalanced or missing accounts
    */
-  async postJournalEntry(dto: CreateJournalEntryDto, userId?: string): Promise<JournalEntry> {
+  async postJournalEntry(
+    dto: CreateJournalEntryDto,
+    userId?: string,
+  ): Promise<JournalEntry> {
     this.validatePostingBalance(dto.postings);
+
+    if (userId) {
+      const accountIds = Array.from(
+        new Set(dto.postings.map((p) => p.accountId)),
+      );
+      const accessibleAccounts = await this.prisma.account.findMany({
+        where: {
+          id: { in: accountIds },
+          OR: [{ userId }, { userId: null }],
+        },
+        select: { id: true },
+      });
+      if (accessibleAccounts.length !== accountIds.length) {
+        throw new ForbiddenException(
+          'One or more posting account heads do not belong to your user account.',
+        );
+      }
+    }
 
     const existingTxn = await this.prisma.journalEntry.findFirst({
       where: {
@@ -95,14 +193,18 @@ export class LedgerService {
       },
     });
     if (existingTxn) {
-      throw new ConflictException(`Journal entry with number '${dto.entryNumber}' already exists.`);
+      throw new ConflictException(
+        `Journal entry with number '${dto.entryNumber}' already exists.`,
+      );
     }
 
     return this.prisma.journalEntry.create({
       data: {
         entryNumber: dto.entryNumber,
         description: dto.description,
-        transactionDate: dto.transactionDate ? new Date(dto.transactionDate) : new Date(),
+        transactionDate: dto.transactionDate
+          ? new Date(dto.transactionDate)
+          : new Date(),
         userId: userId || undefined,
         postings: {
           create: dto.postings.map((p) => ({
@@ -157,9 +259,13 @@ export class LedgerService {
   /**
    * Validates that total DEBIT allocations strictly equal total CREDIT allocations.
    */
-  private validatePostingBalance(postings: { type: PostingType; amount: number }[]): void {
+  private validatePostingBalance(
+    postings: { type: PostingType; amount: number }[],
+  ): void {
     if (!postings || postings.length < 2) {
-      throw new BadRequestException('A double-entry transaction must contain at least 2 posting lines.');
+      throw new BadRequestException(
+        'A double-entry transaction must contain at least 2 posting lines.',
+      );
     }
 
     let totalDebit = 0;
@@ -184,7 +290,10 @@ export class LedgerService {
   /**
    * Computes individual account head net balance based on canonical accounting equation rules.
    */
-  private calculateAccountBalance(type: AccountType, postings: { type: PostingType; amount: number }[]): number {
+  private calculateAccountBalance(
+    type: AccountType,
+    postings: { type: PostingType; amount: number }[],
+  ): number {
     let balance = 0;
     for (const p of postings) {
       if (type === AccountType.ASSET || type === AccountType.EXPENSE) {

@@ -17,4 +17,5 @@ export const NO_CACHE_KEY = 'no_cache';
  *
  * @returns CustomDecorator setting the NO_CACHE_KEY metadata flag to true
  */
-export const NoCache = (): CustomDecorator<string> => SetMetadata(NO_CACHE_KEY, true);
+export const NoCache = (): CustomDecorator<string> =>
+  SetMetadata(NO_CACHE_KEY, true);

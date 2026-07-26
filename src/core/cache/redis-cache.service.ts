@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
@@ -43,7 +48,9 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
 
     this.client.on('error', (err) => {
       this.isConnected = false;
-      this.logger.warn(`⚠️ Redis Connection Error: ${err.message}. Falling back to DB queries.`);
+      this.logger.warn(
+        `⚠️ Redis Connection Error: ${err.message}. Falling back to DB queries.`,
+      );
     });
   }
 
@@ -123,13 +130,17 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
       return;
     }
     try {
-      const stream = this.client.scanStream({ match: pattern, count: 100 });
-      stream.on('data', (keys: string[]) => {
-        if (keys.length > 0) {
-          const pipeline = this.client.pipeline();
-          keys.forEach((k) => pipeline.del(k));
-          pipeline.exec();
-        }
+      await new Promise<void>((resolve, reject) => {
+        const stream = this.client.scanStream({ match: pattern, count: 100 });
+        stream.on('data', (keys: string[]) => {
+          if (keys.length > 0) {
+            const pipeline = this.client.pipeline();
+            keys.forEach((k) => pipeline.del(k));
+            void pipeline.exec();
+          }
+        });
+        stream.on('end', () => resolve());
+        stream.on('error', (err) => reject(err));
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);

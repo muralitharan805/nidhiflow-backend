@@ -5,7 +5,7 @@ import { RedisCacheService } from './redis-cache.service';
 jest.mock('ioredis', () => {
   return jest.fn().mockImplementation(() => {
     return {
-      on: jest.fn((event, callback) => {
+      on: jest.fn((event: string, callback: (...args: unknown[]) => void) => {
         if (event === 'connect') {
           callback();
         }
@@ -14,9 +14,12 @@ jest.mock('ioredis', () => {
       set: jest.fn().mockResolvedValue('OK'),
       del: jest.fn().mockResolvedValue(1),
       scanStream: jest.fn().mockReturnValue({
-        on: jest.fn((event, callback) => {
+        on: jest.fn((event: string, callback: (...args: unknown[]) => void) => {
           if (event === 'data') {
             callback(['nidhiflow:cache:test:1']);
+          }
+          if (event === 'end') {
+            callback();
           }
         }),
       }),
@@ -68,7 +71,9 @@ describe('RedisCacheService', () => {
   });
 
   it('should set key-value in Redis on set()', async () => {
-    await expect(service.set('test:key', { id: 1 }, 300)).resolves.not.toThrow();
+    await expect(
+      service.set('test:key', { id: 1 }, 300),
+    ).resolves.not.toThrow();
   });
 
   it('should delete key in Redis on del()', async () => {
@@ -76,6 +81,8 @@ describe('RedisCacheService', () => {
   });
 
   it('should clear pattern in Redis on delByPattern()', async () => {
-    await expect(service.delByPattern('nidhiflow:cache:test:*')).resolves.not.toThrow();
+    await expect(
+      service.delByPattern('nidhiflow:cache:test:*'),
+    ).resolves.not.toThrow();
   });
 });

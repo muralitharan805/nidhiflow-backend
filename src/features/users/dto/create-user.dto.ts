@@ -1,9 +1,19 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsEnum, IsOptional } from 'class-validator';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MinLength,
+  IsEnum,
+  IsOptional,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 
 export class CreateUserDto {
-  @ApiProperty({ example: 'murali@nidhiflow.io', description: 'User primary email address' })
+  @ApiProperty({
+    example: 'murali@nidhiflow.io',
+    description: 'User primary email address',
+  })
   @IsEmail()
   @IsNotEmpty()
   readonly email: string;
@@ -13,7 +23,10 @@ export class CreateUserDto {
   @IsNotEmpty()
   readonly name: string;
 
-  @ApiProperty({ example: 'SecureP@ss123!', description: 'User password (min 8 chars)' })
+  @ApiProperty({
+    example: 'SecureP@ss123!',
+    description: 'User password (min 8 chars)',
+  })
   @IsString()
   @MinLength(8)
   readonly password: string;

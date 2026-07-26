@@ -10,6 +10,7 @@ import { UsersModule } from './features/users/users.module';
 import { LedgerModule } from './features/ledger/ledger.module';
 import { AmortizationModule } from './features/amortization/amortization.module';
 import { ForecastingModule } from './features/forecasting/forecasting.module';
+import { ReportsModule } from './features/reports/reports.module';
 import { JwtAuthGuard } from './features/auth/guards/jwt-auth.guard';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -28,6 +29,7 @@ import { AppService } from './app.service';
     LedgerModule,
     AmortizationModule,
     ForecastingModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [
