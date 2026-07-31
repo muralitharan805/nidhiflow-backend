@@ -48,8 +48,9 @@ export class RedisCacheService implements OnModuleInit, OnModuleDestroy {
 
     this.client.on('error', (err) => {
       this.isConnected = false;
+      const errorDetails = err?.message || String(err);
       this.logger.warn(
-        `⚠️ Redis Connection Error: ${err.message}. Falling back to DB queries.`,
+        `⚠️ Redis Connection Error: ${errorDetails}. Falling back to DB queries.`,
       );
     });
   }

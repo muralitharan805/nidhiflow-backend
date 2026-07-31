@@ -64,7 +64,10 @@ docker compose -f docker-compose.shared.yml -f docker-compose.yml -f docker-comp
 ### Mode B: Shared Infrastructure Cost-Saver Mode (Existing Container Network)
 
 ```bash
-# Connect application container to pre-existing shared container network
+# Option 1: Standalone Single-File Deployment
+docker compose -f docker-compose.existing-infra.yml up -d --build
+
+# Option 2: Multi-file compose layer merging
 docker compose -f docker-compose.yml -f docker-compose.existing-infra.yml up -d --build
 ```
 

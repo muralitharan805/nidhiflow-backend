@@ -1,41 +1,39 @@
-# Stage 1: Dependency Caching Stage
-FROM node:20-alpine AS deps
+# Stage 1: Base Image
+FROM node:22-alpine AS base
 
-RUN corepack enable && corepack prepare pnpm@11.1.3 --activate
-
+RUN npm install -g pnpm@11.1.3
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+# Stage 2: Dependencies & Schema Stage
+FROM base AS dependencies
 
-# Stage 2: TypeScript Compilation Stage
-FROM node:20-alpine AS builder
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml* ./
+COPY prisma ./prisma
 
-RUN corepack enable && corepack prepare pnpm@11.1.3 --activate
+# pnpm-workspace.yaml contains allowBuilds config for pnpm v11 security compliance
 
-WORKDIR /app
+# Install dependencies with cache mount and generate Prisma Client
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+RUN pnpm run prisma:generate
 
-COPY --from=deps /app/node_modules ./node_modules
+# Stage 3: Build Stage
+FROM dependencies AS build
+
 COPY . .
-
-RUN pnpm run prisma:generate || true
 RUN pnpm run build
 RUN pnpm prune --prod
 
-# Stage 3: Production Runner Stage
-FROM node:20-alpine AS runner
-
-WORKDIR /app
+# Stage 4: Production Runner Stage
+FROM base AS runner
 
 ENV NODE_ENV=production
 
-RUN corepack enable && corepack prepare pnpm@11.1.3 --activate
-
-COPY package.json pnpm-lock.yaml ./
-COPY docker-entrypoint.sh ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
+# Copy pre-built artifacts directly with non-root ownership to avoid expensive runtime chown
+COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml* ./
+COPY --chown=node:node docker-entrypoint.sh ./
+COPY --chown=node:node --from=build /app/node_modules ./node_modules
+COPY --chown=node:node --from=build /app/dist ./dist
+COPY --chown=node:node --from=build /app/prisma ./prisma
 
 RUN chmod +x docker-entrypoint.sh
 
@@ -47,4 +45,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["node", "dist/main.js"]
+CMD ["node", "dist/src/main.js"]

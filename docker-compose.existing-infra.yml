@@ -1,8 +1,39 @@
 services:
   app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+    command: node dist/src/main.js
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-3000}
+      - DB_HOST=${DB_HOST:-pgvector-db}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE}
+      - DATABASE_URL=postgresql://${DB_USERNAME}:${DB_PASSWORD}@${DB_HOST:-pgvector-db}:${DB_PORT:-5432}/${DB_DATABASE}?schema=public
+      - REDIS_HOST=${REDIS_HOST:-redis-dev}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_CACHE_GLOBAL_ENABLED=${REDIS_CACHE_GLOBAL_ENABLED:-true}
+      - CACHE_DISABLED_ROUTES=${CACHE_DISABLED_ROUTES:-/health,/api/v1/auth}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+    ports:
+      - "${HOST_PORT:-${PORT:-3000}}:${PORT:-3000}"
+    restart: always
     networks:
-      - shared-infra-network
+      - db_network
+      - redis_network
 
 networks:
-  shared-infra-network:
+  db_network:
+    name: ${DB_NETWORK_NAME:-pgvector_network}
+    external: true
+  redis_network:
+    name: ${REDIS_NETWORK_NAME:-redis_default}
     external: true
