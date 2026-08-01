@@ -22,6 +22,7 @@ Production-grade NestJS backend service built with TypeScript, Prisma ORM, Zod e
 | `NODE_ENV` | Application runtime environment (`development`, `production`, `test`) | `development` | Yes |
 | `PORT` | HTTP Listening Server Port | `3000` | Yes |
 | `DATABASE_URL` | PostgreSQL Database Connection String | - | Yes |
+| `SEED_DB` | Set to `true` to automatically execute database seeding on container startup in production | `false` | No |
 | `JWT_SECRET` | Secret key used for signing JWT Bearer tokens | - | Yes |
 | `JWT_EXPIRES_IN` | Duration of issued JWT access tokens | `1d` | No |
 
@@ -82,4 +83,7 @@ docker inspect --format='{{json .State.Health}}' nidhiflow-backend-app
 
 # Stop and remove containers
 docker compose down
+
+# Manually execute database seed in a running production container
+docker compose exec app node prisma/seed.js
 ```

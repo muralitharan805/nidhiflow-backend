@@ -6,7 +6,9 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "nest build",
+    "build": "nest build && pnpm run build:seed",
+    "build:seed": "tsc prisma/seed.ts --target ES2022 --module CommonJS --esModuleInterop --skipLibCheck",
+    "seed:prod": "node prisma/seed.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
