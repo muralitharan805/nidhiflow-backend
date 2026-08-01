@@ -99,5 +99,6 @@ To enable the deployment pipeline, you **must** configure the following secrets 
 - `SERVER_HOST`: The public IP address or domain of the VPS.
 - `SERVER_USERNAME`: The SSH user (e.g., `root`, `ubuntu`).
 - `SERVER_SSH_KEY`: The raw private SSH key string (e.g., contents of `id_rsa` or `id_ed25519`) for authentication. Ensure the corresponding public key is in `~/.ssh/authorized_keys` on the server.
+- `SERVER_PORT`: The SSH port to connect to (e.g., `22`, `2001`).
 - `PROJECT_PATH`: The absolute directory path on the VPS where the project is already cloned (e.g., `/home/ubuntu/nidhiflow-backend`).
 
