@@ -121,7 +121,11 @@ async function main(): Promise<void> {
   console.log('🌱 Starting database seeding...');
 
   // 1. Seed Admin User
-  const hashedPassword = await bcrypt.hash('AdminP@ss123!', 10);
+  const adminPassword = process.env.ADMIN_SEED_PASSWORD;
+  if (!adminPassword) {
+    throw new Error('ADMIN_SEED_PASSWORD environment variable is required for seeding.');
+  }
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@nidhiflow.io' },
     update: {},
@@ -135,7 +139,11 @@ async function main(): Promise<void> {
   console.log(`✅ Seeded Admin User: ${admin.email}`);
 
   // 2. Seed Standard User
-  const sampleUserPassword = await bcrypt.hash('UserP@ss123!', 10);
+  const userPassword = process.env.USER_SEED_PASSWORD;
+  if (!userPassword) {
+    throw new Error('USER_SEED_PASSWORD environment variable is required for seeding.');
+  }
+  const sampleUserPassword = await bcrypt.hash(userPassword, 10);
   const user = await prisma.user.upsert({
     where: { email: 'murali@nidhiflow.io' },
     update: {},
