@@ -87,3 +87,17 @@ docker compose down
 # Manually execute database seed in a running production container
 docker compose exec app node prisma/seed.js
 ```
+
+## 🚀 Automated Deployment via GitHub Actions
+
+This project is configured for automated SSH deployments using GitHub Actions. Upon pushing to the `main` branch, the CI/CD pipeline will connect to your remote VPS server and rebuild the containers using the `docker-compose.existing-infra.yml` configuration.
+
+### GitHub Secrets Configuration Checklist
+
+To enable the deployment pipeline, you **must** configure the following secrets in your GitHub repository settings (`Settings > Secrets and variables > Actions > New repository secret`):
+
+- `SERVER_HOST`: The public IP address or domain of the VPS.
+- `SERVER_USERNAME`: The SSH user (e.g., `root`, `ubuntu`).
+- `SERVER_SSH_KEY`: The raw private SSH key string (e.g., contents of `id_rsa` or `id_ed25519`) for authentication. Ensure the corresponding public key is in `~/.ssh/authorized_keys` on the server.
+- `PROJECT_PATH`: The absolute directory path on the VPS where the project is already cloned (e.g., `/home/ubuntu/nidhiflow-backend`).
+
