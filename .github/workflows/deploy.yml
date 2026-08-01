@@ -10,6 +10,13 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug Network Connection
+        run: |
+          echo "Pinging server..."
+          ping -c 4 ${{ secrets.SERVER_HOST }} || true
+          echo "Testing port..."
+          nc -zv -w 5 ${{ secrets.SERVER_HOST }} ${{ secrets.SERVER_PORT }} || true
+          
       - name: Execute SSH Deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
