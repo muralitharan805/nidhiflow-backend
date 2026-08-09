@@ -23,6 +23,9 @@ services:
       - CACHE_DISABLED_ROUTES=${CACHE_DISABLED_ROUTES:-/health,/api/v1/auth}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+      - SEED_DB=${SEED_DB:-true}
+      - ADMIN_SEED_PASSWORD=${ADMIN_SEED_PASSWORD:-Murali@123}
+      - USER_SEED_PASSWORD=${USER_SEED_PASSWORD:-Murali@123}
     ports:
       - "${HOST_PORT:-${PORT:-3000}}:${PORT:-3000}"
     restart: always
