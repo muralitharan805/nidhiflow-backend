@@ -60,7 +60,10 @@ export class AmortizationService {
       );
     }
 
-    const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
+    const startDate =
+      dto.startDate && !isNaN(new Date(dto.startDate).getTime())
+        ? new Date(dto.startDate)
+        : new Date();
     const monthlyEmi = this.calculateEmi(
       dto.principalAmount,
       dto.annualInterestRate,
