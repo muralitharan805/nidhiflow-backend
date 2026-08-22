@@ -1,0 +1,4 @@
+services:
+  app:
+    image: seyalicraft/nidhiflow-backend:latest
+    build: !reset null

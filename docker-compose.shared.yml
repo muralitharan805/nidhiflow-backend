@@ -35,6 +35,15 @@ services:
     networks:
       - nidhiflow-network
 
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: nidhiflow-redisinsight
+    restart: unless-stopped
+    ports:
+      - "${REDISINSIGHT_PORT:-5540}:5540"
+    networks:
+      - nidhiflow-network
+
 volumes:
   postgres_data:
     driver: local

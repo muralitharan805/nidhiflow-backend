@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runner
+    image: seyalicraft/nidhiflow-backend:latest
     command: node dist/src/main.js
     env_file:
       - .env
