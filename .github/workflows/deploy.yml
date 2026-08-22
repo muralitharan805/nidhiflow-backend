@@ -26,10 +26,10 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           script: |
             cd ${{ secrets.PROJECT_PATH }}
-            git pull origin main
+            git pull origin main || git pull origin master
             
-            # Deploy using existing infra compose file
-            docker compose -f docker-compose.existing-infra.yml up -d --build
+            # Zero-compilation deployment pulling pre-built image from Docker Hub
+            docker compose -f docker-compose.existing-infra.yml -f docker-compose.repo.yml up -d --pull always
             
             # Clean up dangling images to save server disk space
             docker image prune -f

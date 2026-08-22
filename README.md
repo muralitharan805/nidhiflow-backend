@@ -52,8 +52,26 @@ pnpm run start:dev
 
 ## 🐳 Docker Containerization & Multi-Environment Guide
 
-### Mode A: Standalone Infrastructure Mode (Dedicated Postgres + Redis Containers)
+### 📦 1. Building & Pushing Remote Container Images
+```bash
+# Build production container image locally
+docker build -t seyalicraft/nidhiflow-backend:latest .
 
+# Push pre-built image to Docker Hub
+docker push seyalicraft/nidhiflow-backend:latest
+```
+
+### 🏗️ 2. Mandatory 6-File Compose Topology Overview
+- `docker-compose.yml`: Primary application service, bridge network (`nidhiflow-network`), and default configuration.
+- `docker-compose.override.yml`: Development overrides (hot-reloading source mounts, `pnpm run start:dev`).
+- `docker-compose.prod.yml`: Production overrides (resource limits, `json-file` log rotation).
+- `docker-compose.shared.yml`: Standalone backing infrastructure (`ankane/pgvector:v0.5.1`, `redis:7.2-alpine`, `redis/redisinsight:latest`).
+- `docker-compose.existing-infra.yml`: Cost-saver overrides connecting application container to external networks (`db_network`, `redis_network`).
+- `docker-compose.repo.yml`: Pre-built remote image layer (`seyalicraft/nidhiflow-backend:latest`) for zero-compilation VPS deployments.
+
+### 🚀 3. Environment Execution Modes
+
+#### Mode A: Standalone Infrastructure Mode (Dedicated Postgres + Redis + RedisInsight)
 ```bash
 # Local Development (Hot-reloading + Source Volume Mounts)
 docker compose -f docker-compose.shared.yml -f docker-compose.yml -f docker-compose.override.yml up -d --build
@@ -62,17 +80,19 @@ docker compose -f docker-compose.shared.yml -f docker-compose.yml -f docker-comp
 docker compose -f docker-compose.shared.yml -f docker-compose.yml -f docker-compose.prod.yml up -d --build
 ```
 
-### Mode B: Shared Infrastructure Cost-Saver Mode (Existing Container Network)
-
+#### Mode B: Shared Infrastructure Cost-Saver Mode (Existing Container Network)
 ```bash
-# Option 1: Standalone Single-File Deployment
-docker compose -f docker-compose.existing-infra.yml up -d --build
-
-# Option 2: Multi-file compose layer merging
+# Multi-file compose layer merging on existing infra network
 docker compose -f docker-compose.yml -f docker-compose.existing-infra.yml up -d --build
 ```
 
-### Useful Container Management Commands
+#### Mode C: Pre-Built Remote Image Mode (No VPS Source Code Compilation)
+```bash
+# Pull and launch pre-built image from Docker Hub without local compilation
+docker compose -f docker-compose.existing-infra.yml -f docker-compose.repo.yml up -d --pull always
+```
+
+### 🛠️ Useful Container Management Commands
 
 ```bash
 # View live application container logs
@@ -90,15 +110,18 @@ docker compose exec app node prisma/seed.js
 
 ## 🚀 Automated Deployment via GitHub Actions
 
-This project is configured for automated SSH deployments using GitHub Actions. Upon pushing to the `main` branch, the CI/CD pipeline will connect to your remote VPS server and rebuild the containers using the `docker-compose.existing-infra.yml` configuration.
+This project is configured for automated SSH deployments using GitHub Actions (`.github/workflows/deploy.yml`). Upon pushing to the `main` or `master` branch, the CI/CD pipeline connects to your remote VPS server via SSH, pulls the latest compose files, and executes a zero-compilation deployment pulling pre-built images (`seyalicraft/nidhiflow-backend:latest`) from Docker Hub.
 
-### GitHub Secrets Configuration Checklist
+### 🔐 Required GitHub Repository Secrets
 
-To enable the deployment pipeline, you **must** configure the following secrets in your GitHub repository settings (`Settings > Secrets and variables > Actions > New repository secret`):
+Configure the following secrets under `Settings > Secrets and variables > Actions > New repository secret`:
 
-- `SERVER_HOST`: The public IP address or domain of the VPS.
-- `SERVER_USERNAME`: The SSH user (e.g., `root`, `ubuntu`).
-- `SERVER_SSH_KEY`: The raw private SSH key string (e.g., contents of `id_rsa` or `id_ed25519`) for authentication. Ensure the corresponding public key is in `~/.ssh/authorized_keys` on the server.
-- `SERVER_PORT`: The SSH port to connect to (e.g., `22`, `2001`).
-- `PROJECT_PATH`: The absolute directory path on the VPS where the project is already cloned (e.g., `/home/ubuntu/nidhiflow-backend`).
+| Secret Name | Description | Example / Required Format |
+| :--- | :--- | :--- |
+| `SERVER_HOST` | Public IP address or domain name of your VPS server | `192.0.2.1` or `api.seyalicraft.com` |
+| `SERVER_USERNAME` | Non-root or root SSH user account on the server | `ubuntu`, `deploy`, `root` |
+| `SERVER_SSH_KEY` | Raw private SSH key for authentication (must match `~/.ssh/authorized_keys` on VPS) | `-----BEGIN OPENSSH PRIVATE KEY----- ...` |
+| `SERVER_PORT` | SSH listening port on the target VPS | `22` (default) or custom port `2001` |
+| `PROJECT_PATH` | Absolute directory path on the VPS where the project is cloned | `/home/ubuntu/nidhiflow-backend` |
+
 

@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: nidhiflow-backend:latest
+    image: seyalicraft/nidhiflow-backend:latest
     container_name: nidhiflow-backend-app
     ports:
       - "${HOST_PORT:-${PORT:-3000}}:${PORT:-3000}"
